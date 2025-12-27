@@ -1,0 +1,243 @@
+// Psy-Manager AI - Prisma Schema
+// Sistema de gestão para psicólogos com IA integrada
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ====================================
+// ENUMS
+// ====================================
+
+enum PlanType {
+  BASIC
+  PRO
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TestCategory {
+  ANXIETY
+  DEPRESSION
+  ADHD
+  AUTISM
+  PTSD
+  PERSONALITY
+  RELATIONSHIP
+}
+
+enum SeverityLevel {
+  MINIMAL
+  MILD
+  MODERATE
+  MODERATELY_SEVERE
+  SEVERE
+}
+
+// ====================================
+// MODELS
+// ====================================
+
+model Psychologist {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String   @map("password_hash")
+  name             String
+  crp              String   @unique // Registro profissional (ex: CRP 06/123456)
+  phone            String?
+  planType         PlanType @default(BASIC) @map("plan_type")
+  subscriptionEndsAt DateTime? @map("subscription_ends_at")
+
+  // Preferences
+  digitalSignature String?  @map("digital_signature") // Base64 ou URL da assinatura
+
+  // Timestamps
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  patients         Patient[]
+  appointments     Appointment[]
+
+  @@map("psychologists")
+}
+
+model Patient {
+  id              String   @id @default(uuid())
+  name            String
+  email           String?
+  phone           String?
+  birthDate       DateTime? @map("birth_date")
+  cpf             String?  @unique
+
+  // Clinical data
+  clinicalSummary String?  @map("clinical_summary") @db.Text // Resumo do histórico (para IA)
+  emergencyContact String? @map("emergency_contact")
+
+  // Privacy & LGPD
+  isActive        Boolean  @default(true) @map("is_active")
+  deletedAt       DateTime? @map("deleted_at") // Soft delete para LGPD
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Foreign Keys
+  psychologistId  String   @map("psychologist_id")
+
+  // Relations
+  psychologist    Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  testResults     PatientTestResult[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id                String   @id @default(uuid())
+  scheduledAt       DateTime @map("scheduled_at")
+  status            AppointmentStatus @default(SCHEDULED)
+  durationMinutes   Int      @default(50) @map("duration_minutes")
+
+  // Session notes (encrypted in production)
+  notes             String?  @db.Text
+  aiSuggestions     Json?    @map("ai_suggestions") // Sugestões da IA em JSON
+
+  // Audio & Transcription
+  audioUrl          String?  @map("audio_url") // URL do áudio armazenado
+  transcription     String?  @db.Text
+  transcriptionProcessedAt DateTime? @map("transcription_processed_at")
+
+  // Timestamps
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Foreign Keys
+  psychologistId    String   @map("psychologist_id")
+  patientId         String   @map("patient_id")
+
+  // Relations
+  psychologist      Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  patient           Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([psychologistId])
+  @@index([scheduledAt])
+  @@map("appointments")
+}
+
+model Test {
+  id              String       @id @default(uuid())
+  code            String       @unique // Ex: PHQ9, GAD7, BDI_II
+  name            String       // Ex: "Patient Health Questionnaire-9"
+  description     String       @db.Text
+  category        TestCategory
+
+  // Metadata
+  minScore        Int          @map("min_score")
+  maxScore        Int          @map("max_score")
+  hasTimer        Boolean      @default(false) @map("has_timer")
+  timerSeconds    Int?         @map("timer_seconds")
+
+  // Scoring rules (JSON format)
+  scoringRules    Json         @map("scoring_rules") // { "ranges": [{"min": 0, "max": 4, "level": "MINIMAL"}] }
+
+  // Copyright & restrictions
+  isPublicDomain  Boolean      @default(true) @map("is_public_domain")
+  requiresLicense Boolean      @default(false) @map("requires_license")
+
+  // Timestamps
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  questions       Question[]
+  testResults     PatientTestResult[]
+
+  @@map("tests")
+}
+
+model Question {
+  id              String   @id @default(uuid())
+  testId          String   @map("test_id")
+  orderIndex      Int      @map("order_index") // Ordem da questão no teste
+  questionText    String   @map("question_text") @db.Text
+
+  // Answer options (JSON format)
+  answerOptions   Json     @map("answer_options") // [{"value": 0, "label": "Nunca"}, {"value": 1, "label": "Raramente"}]
+
+  // Weights for scoring
+  weight          Float    @default(1.0) // Peso da questão no cálculo final
+  isReversed      Boolean  @default(false) @map("is_reversed") // Para questões invertidas
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  test            Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  responses       TestResponse[]
+
+  @@unique([testId, orderIndex])
+  @@map("questions")
+}
+
+model PatientTestResult {
+  id                String        @id @default(uuid())
+  testId            String        @map("test_id")
+  patientId         String        @map("patient_id")
+
+  // Results
+  totalScore        Float         @map("total_score")
+  severityLevel     SeverityLevel @map("severity_level")
+  interpretation    String?       @db.Text // Interpretação automática baseada nas regras
+
+  // Application context
+  appliedAt         DateTime      @default(now()) @map("applied_at")
+  applicationMode   String?       @map("application_mode") // "remote" | "in_office"
+
+  // AI Analysis (Pro plan)
+  aiInconsistencyFlag Boolean     @default(false) @map("ai_inconsistency_flag")
+  aiAnalysis        String?       @map("ai_analysis") @db.Text
+
+  // Timestamps
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  test              Test          @relation(fields: [testId], references: [id])
+  patient           Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  responses         TestResponse[]
+
+  @@map("patient_test_results")
+}
+
+model TestResponse {
+  id              String   @id @default(uuid())
+  resultId        String   @map("result_id")
+  questionId      String   @map("question_id")
+
+  // Response data
+  selectedValue   Int      @map("selected_value") // Valor selecionado (0, 1, 2, 3...)
+  responseTime    Int?     @map("response_time") // Tempo de resposta em segundos (para testes cronometrados)
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  result          PatientTestResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  question        Question @relation(fields: [questionId], references: [id])
+
+  @@unique([resultId, questionId])
+  @@map("test_responses")
+}
