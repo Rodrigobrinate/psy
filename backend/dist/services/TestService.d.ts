@@ -21,8 +21,8 @@ export declare class TestService {
     listTests(category?: string): Promise<{
         name: string;
         id: string;
-        code: string;
         description: string;
+        code: string;
         category: import("../generated/prisma").$Enums.TestCategory;
         minScore: number;
         maxScore: number;
@@ -50,8 +50,8 @@ export declare class TestService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        code: string;
         description: string;
+        code: string;
         category: import("../generated/prisma").$Enums.TestCategory;
         minScore: number;
         maxScore: number;

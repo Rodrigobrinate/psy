@@ -68,6 +68,9 @@ model Psychologist {
   // Relations
   patients         Patient[]
   appointments     Appointment[]
+  services         Service[]
+  transactions     Transaction[]
+  documents        Document[]
 
   @@map("psychologists")
 }
@@ -99,6 +102,8 @@ model Patient {
   psychologist    Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
   appointments    Appointment[]
   testResults     PatientTestResult[]
+  transactions    Transaction[]
+  documents       Document[]
 
   @@map("patients")
 }
@@ -125,10 +130,14 @@ model Appointment {
   // Foreign Keys
   psychologistId    String   @map("psychologist_id")
   patientId         String   @map("patient_id")
+  serviceId         String?  @map("service_id")
 
   // Relations
   psychologist      Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
   patient           Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  service           Service? @relation(fields: [serviceId], references: [id])
+  transactions      Transaction[]
+  documents         Document[]
 
   @@index([patientId])
   @@index([psychologistId])
@@ -240,4 +249,120 @@ model TestResponse {
 
   @@unique([resultId, questionId])
   @@map("test_responses")
+}
+
+// ====================================
+// FINANCIAL MODELS
+// ====================================
+
+enum TransactionType {
+  INCOME    // Entrada (receita)
+  EXPENSE   // Saída (despesa)
+}
+
+model Service {
+  id              String   @id @default(uuid())
+  name            String   // Ex: "Terapia Individual", "Terapia de Casal"
+  description     String?  @db.Text
+  defaultPrice    Float    @map("default_price") // Preço padrão do serviço
+  durationMinutes Int      @default(50) @map("duration_minutes")
+  isActive        Boolean  @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Foreign Keys
+  psychologistId  String   @map("psychologist_id")
+
+  // Relations
+  psychologist    Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  transactions    Transaction[]
+
+  @@map("services")
+}
+
+model Transaction {
+  id              String          @id @default(uuid())
+  type            TransactionType
+  amount          Float           // Valor (positivo)
+  description     String          @db.Text
+  date            DateTime        @default(now()) // Data da transação
+  
+  // Payment info
+  paymentMethod   String?         @map("payment_method") // "pix", "dinheiro", "cartao", "transferencia"
+  isPaid          Boolean         @default(true) @map("is_paid") // Se foi pago
+  paidAt          DateTime?       @map("paid_at")
+
+  // Timestamps
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // Foreign Keys
+  psychologistId  String          @map("psychologist_id")
+  patientId       String?         @map("patient_id") // Opcional (despesas não tem paciente)
+  serviceId       String?         @map("service_id") // Opcional (despesas não tem serviço)
+  appointmentId   String?         @map("appointment_id") // Opcional (vinculado a consulta)
+
+  // Relations
+  psychologist    Psychologist    @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  patient         Patient?        @relation(fields: [patientId], references: [id])
+  service         Service?        @relation(fields: [serviceId], references: [id])
+  appointment     Appointment?    @relation(fields: [appointmentId], references: [id])
+
+  @@index([psychologistId])
+  @@index([date])
+  @@index([type])
+  @@map("transactions")
+}
+
+// ====================================
+// DOCUMENT MODELS
+// ====================================
+
+enum DocumentType {
+  PRESCRIPTION     // Receita médica
+  REPORT           // Laudo psicológico
+  CERTIFICATE      // Atestado
+  DECLARATION      // Declaração
+  REFERRAL         // Encaminhamento
+  OTHER            // Outros documentos
+}
+
+model Document {
+  id              String       @id @default(uuid())
+  type            DocumentType
+  title           String       // Título do documento
+  content         String       @db.Text // Conteúdo do documento (HTML ou texto)
+  
+  // Para receitas
+  medications     Json?        // Array de medicamentos [{name, dosage, instructions}]
+  
+  // Para laudos
+  cid10Code       String?      @map("cid10_code") // Código CID-10 se aplicável
+  diagnosis       String?      @db.Text // Diagnóstico
+  
+  // Metadados
+  issuedAt        DateTime     @default(now()) @map("issued_at")
+  validUntil      DateTime?    @map("valid_until") // Validade (para atestados)
+  
+  // Timestamps
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Foreign Keys
+  psychologistId  String       @map("psychologist_id")
+  patientId       String       @map("patient_id")
+  appointmentId   String?      @map("appointment_id")
+
+  // Relations
+  psychologist    Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  patient         Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([psychologistId])
+  @@index([patientId])
+  @@index([type])
+  @@map("documents")
 }

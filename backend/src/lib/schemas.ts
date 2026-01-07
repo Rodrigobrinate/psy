@@ -31,7 +31,10 @@ export const createPatientSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
   birthDate: z.string().datetime().optional(),
-  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF inválido').optional(),
+  cpf: z.string()
+    .transform((val) => val?.replace(/\D/g, '')) // Remove formatação
+    .pipe(z.string().length(11, 'CPF deve ter 11 dígitos').optional().or(z.literal('')))
+    .optional(),
   clinicalSummary: z.string().optional(),
   emergencyContact: z.string().optional(),
 });
@@ -47,6 +50,7 @@ export const createAppointmentSchema = z.object({
   scheduledAt: z.string().datetime('Data/hora inválida'),
   durationMinutes: z.number().int().min(15).max(240).default(50),
   notes: z.string().optional(),
+  serviceId: z.string().uuid('ID do serviço inválido').optional(),
 });
 
 export const updateAppointmentSchema = z.object({
@@ -55,6 +59,19 @@ export const updateAppointmentSchema = z.object({
   notes: z.string().optional(),
   aiSuggestions: z.any().optional(),
 });
+
+// ====================================
+// SERVICE SCHEMAS
+// ====================================
+
+export const createServiceSchema = z.object({
+  name: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
+  description: z.string().optional(),
+  defaultPrice: z.number().min(0, 'Preço não pode ser negativo'),
+  durationMinutes: z.number().int().min(15).max(240).default(50),
+});
+
+export const updateServiceSchema = createServiceSchema.partial();
 
 // ====================================
 // TEST SCHEMAS
@@ -83,4 +100,6 @@ export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
+export type CreateServiceInput = z.infer<typeof createServiceSchema>;
+export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 export type SubmitTestResponseInput = z.infer<typeof submitTestResponseSchema>;

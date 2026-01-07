@@ -37,7 +37,7 @@ export declare const createPatientSchema: z.ZodObject<{
     email: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>;
     phone: z.ZodOptional<z.ZodString>;
     birthDate: z.ZodOptional<z.ZodString>;
-    cpf: z.ZodOptional<z.ZodString>;
+    cpf: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>>>;
     clinicalSummary: z.ZodOptional<z.ZodString>;
     emergencyContact: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -62,7 +62,7 @@ export declare const updatePatientSchema: z.ZodObject<{
     email: z.ZodOptional<z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>>;
     phone: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     birthDate: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-    cpf: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    cpf: z.ZodOptional<z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>>>>;
     clinicalSummary: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     emergencyContact: z.ZodOptional<z.ZodOptional<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
@@ -87,16 +87,19 @@ export declare const createAppointmentSchema: z.ZodObject<{
     scheduledAt: z.ZodString;
     durationMinutes: z.ZodDefault<z.ZodNumber>;
     notes: z.ZodOptional<z.ZodString>;
+    serviceId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     scheduledAt: string;
     durationMinutes: number;
     patientId: string;
     notes?: string | undefined;
+    serviceId?: string | undefined;
 }, {
     scheduledAt: string;
     patientId: string;
     durationMinutes?: number | undefined;
     notes?: string | undefined;
+    serviceId?: string | undefined;
 }>;
 export declare const updateAppointmentSchema: z.ZodObject<{
     scheduledAt: z.ZodOptional<z.ZodString>;
@@ -113,6 +116,38 @@ export declare const updateAppointmentSchema: z.ZodObject<{
     status?: "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | undefined;
     notes?: string | undefined;
     aiSuggestions?: any;
+}>;
+export declare const createServiceSchema: z.ZodObject<{
+    name: z.ZodString;
+    description: z.ZodOptional<z.ZodString>;
+    defaultPrice: z.ZodNumber;
+    durationMinutes: z.ZodDefault<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    durationMinutes: number;
+    defaultPrice: number;
+    description?: string | undefined;
+}, {
+    name: string;
+    defaultPrice: number;
+    durationMinutes?: number | undefined;
+    description?: string | undefined;
+}>;
+export declare const updateServiceSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    description: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    defaultPrice: z.ZodOptional<z.ZodNumber>;
+    durationMinutes: z.ZodOptional<z.ZodDefault<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    name?: string | undefined;
+    durationMinutes?: number | undefined;
+    description?: string | undefined;
+    defaultPrice?: number | undefined;
+}, {
+    name?: string | undefined;
+    durationMinutes?: number | undefined;
+    description?: string | undefined;
+    defaultPrice?: number | undefined;
 }>;
 export declare const submitTestResponseSchema: z.ZodObject<{
     testId: z.ZodString;
@@ -156,5 +191,7 @@ export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
+export type CreateServiceInput = z.infer<typeof createServiceSchema>;
+export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 export type SubmitTestResponseInput = z.infer<typeof submitTestResponseSchema>;
 //# sourceMappingURL=schemas.d.ts.map

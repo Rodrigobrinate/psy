@@ -8,7 +8,13 @@
       "Bash(if exist .nextdevlock del /f .nextdevlock)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(start test-api.html)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(set PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=sim)",
+      "Bash(export PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"sim\")",
+      "Bash(npx prisma generate:*)"
     ]
   }
 }

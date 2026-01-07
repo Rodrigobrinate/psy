@@ -34,6 +34,7 @@ export declare class PatientService {
             transcription: string | null;
             transcriptionProcessedAt: Date | null;
             patientId: string;
+            serviceId: string | null;
         }[];
         testResults: ({
             test: {

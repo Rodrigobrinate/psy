@@ -3,12 +3,43 @@
  * Popula o banco com testes psicológicos padrão
  */
 
-import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const prisma = new PrismaClient();
+import { PrismaClient } from '../src/generated/prisma';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('🌱 Seeding database...');
+
+  // ====================================
+  // PSYCHOLOGIST (Test User)
+  // ====================================
+
+  const psychologist = await prisma.psychologist.upsert({
+    where: { email: 'teste@psy.com' },
+    update: {
+      passwordHash: '$2a$10$A2XerWUXF.ItOpedonvATOnc3z8CAsP5yArrJiEvWTs9LWVk3Pzfq', // Atualiza a senha
+    },
+    create: {
+      email: 'teste@psy.com',
+      passwordHash: '$2a$10$A2XerWUXF.ItOpedonvATOnc3z8CAsP5yArrJiEvWTs9LWVk3Pzfq', // senha: 123456
+      name: 'Psicólogo Teste',
+      crp: 'CRP 06/123456',
+      phone: '11999999999',
+      planType: 'PRO',
+    },
+  });
+
+  console.log('✅ Psychologist created:', psychologist.id);
 
   // ====================================
   // PHQ-9 (Patient Health Questionnaire-9)
@@ -275,4 +306,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

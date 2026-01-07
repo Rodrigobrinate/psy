@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API - Psy Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+        }
+        button:hover {
+            background: #4338CA;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Psy Manager - API Test</h1>
+
+    <div class="section">
+        <h2>1. Autenticação</h2>
+        <input type="email" id="email" placeholder="Email" value="test@test.com">
+        <input type="password" id="password" placeholder="Senha" value="123456">
+        <button onclick="login()">Login</button>
+        <pre id="authResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>2. Pacientes</h2>
+        <button onclick="getPatients()">Listar Pacientes</button>
+        <pre id="patientsResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>3. Agendamentos</h2>
+        <input type="date" id="appointmentDate" value="">
+        <button onclick="getAppointments()">Listar Agendamentos</button>
+        <button onclick="getAppointmentStats()">Ver Estatísticas</button>
+        <pre id="appointmentsResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>4. Criar Agendamento</h2>
+        <select id="patientSelect">
+            <option value="">Selecione um paciente</option>
+        </select>
+        <input type="date" id="newAppDate">
+        <input type="time" id="newAppTime" value="14:00">
+        <button onclick="createAppointment()">Criar Agendamento</button>
+        <pre id="createResult"></pre>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3004/api';
+        let token = null;
+
+        // Set today's date as default
+        document.getElementById('appointmentDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('newAppDate').value = new Date().toISOString().split('T')[0];
+
+        async function login() {
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('email').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('authResult').textContent = JSON.stringify(data, null, 2);
+
+                if (data.data && data.data.accessToken) {
+                    token = data.data.accessToken;
+                    alert('Login realizado com sucesso!');
+                }
+            } catch (error) {
+                document.getElementById('authResult').textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function getPatients() {
+            if (!token) {
+                alert('Faça login primeiro!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/patients`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                document.getElementById('patientsResult').textContent = JSON.stringify(data, null, 2);
+
+                // Populate patient select
+                const select = document.getElementById('patientSelect');
+                select.innerHTML = '<option value="">Selecione um paciente</option>';
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(patient => {
+                        const option = document.createElement('option');
+                        option.value = patient.id;
+                        option.textContent = patient.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                document.getElementById('patientsResult').textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function getAppointments() {
+            if (!token) {
+                alert('Faça login primeiro!');
+                return;
+            }
+
+            try {
+                const date = document.getElementById('appointmentDate').value;
+                const response = await fetch(`${API_URL}/appointments?date=${date}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                document.getElementById('appointmentsResult').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('appointmentsResult').textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function getAppointmentStats() {
+            if (!token) {
+                alert('Faça login primeiro!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/appointments/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                document.getElementById('appointmentsResult').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('appointmentsResult').textContent = 'Erro: ' + error.message;
+            }
+        }
+
+        async function createAppointment() {
+            if (!token) {
+                alert('Faça login primeiro!');
+                return;
+            }
+
+            const patientId = document.getElementById('patientSelect').value;
+            const date = document.getElementById('newAppDate').value;
+            const time = document.getElementById('newAppTime').value;
+
+            if (!patientId) {
+                alert('Selecione um paciente!');
+                return;
+            }
+
+            try {
+                const scheduledAt = new Date(`${date}T${time}`).toISOString();
+
+                const response = await fetch(`${API_URL}/appointments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        patientId,
+                        scheduledAt,
+                        durationMinutes: 50
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('createResult').textContent = JSON.stringify(data, null, 2);
+
+                if (data.data) {
+                    alert('Agendamento criado com sucesso!');
+                    getAppointments();
+                }
+            } catch (error) {
+                document.getElementById('createResult').textContent = 'Erro: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
